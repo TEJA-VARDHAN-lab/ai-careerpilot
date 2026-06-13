@@ -1,5 +1,9 @@
 import { useState } from "react";
 import { analyzeResume } from "../services/aiService";
+import * as pdfjsLib from "pdfjs-dist";
+
+// Configure the worker locally from the installed package
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 function ResumeUpload() {
   const [fileName, setFileName] = useState("");
@@ -29,23 +33,34 @@ function ResumeUpload() {
     },
   ];
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const file = e.target.files[0];
+    if (!file) return;
 
-    if (file) {
-      setFileName(file.name);
+    setFileName(file.name);
 
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const text = event.target.result;
-        // If it's a binary file (PDF/Word), don't store the corrupted binary string
-        if (text.includes("%PDF") || text.includes("PK\u0003\u0004")) {
-          setResumeText(`[File Name: ${file.name}] - Document uploaded successfully.`);
-        } else {
-          setResumeText(text);
+    try {
+      if (file.type === "application/pdf" || file.name.endsWith(".pdf")) {
+        const arrayBuffer = await file.arrayBuffer();
+        const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+        const pdf = await loadingTask.promise;
+        
+        let fullText = "";
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          const pageText = textContent.items.map((item) => item.str).join(" ");
+          fullText += pageText + "\n";
         }
-      };
-      reader.readAsText(file);
+        setResumeText(fullText);
+      } else {
+        // Fallback for standard text files
+        const text = await file.text();
+        setResumeText(text);
+      }
+    } catch (err) {
+      console.error("Error reading file content: ", err);
+      setResumeText(""); 
     }
   };
 
@@ -59,7 +74,7 @@ function ResumeUpload() {
     setShowResults(false);
 
     try {
-      const result = await analyzeResume(`Analyze this resume profile and return ONLY in this format:
+      const result = await analyzeResume(`Analyze this resume and return ONLY in this format:
 
 Resume Score: XX/100
 
@@ -90,14 +105,14 @@ Internship Suggestions:
 
 Keep response concise and professional.
 
-Resume Data:
-${resumeText || "Target File: " + fileName}`);
+Resume Content to Analyze:
+${resumeText || "File submitted: " + fileName}`);
 
       setAiResult(result || "AI analysis completed.");
       setShowResults(true);
     } catch (error) {
-      console.error("API Error: ", error);
-      setAiResult("Failed to reach the AI engine. Please ensure your VITE_OPENROUTER_API_KEY environment variable is configured correctly in your Netlify Site Settings.");
+      console.error("Analysis failed: ", error);
+      setAiResult("Failed to get AI response. Please double check your environment variables in Netlify.");
       setShowResults(true);
     }
 
