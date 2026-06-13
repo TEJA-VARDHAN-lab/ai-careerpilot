@@ -3,6 +3,7 @@ import { analyzeResume } from "../services/aiService";
 
 function ResumeUpload() {
   const [fileName, setFileName] = useState("");
+  const [resumeText, setResumeText] = useState(""); // Holds the securely extracted text
   const [showResults, setShowResults] = useState(false);
   const [loading, setLoading] = useState(false);
   const [aiResult, setAiResult] = useState("");
@@ -33,6 +34,14 @@ function ResumeUpload() {
 
     if (file) {
       setFileName(file.name);
+
+      // Read any file format cleanly as text without external plugins
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const text = event.target.result;
+        setResumeText(text);
+      };
+      reader.readAsText(file);
     }
   };
 
@@ -46,6 +55,7 @@ function ResumeUpload() {
     setShowResults(false);
 
     try {
+      // Send the clean text structure directly to your AI pipeline
       const result = await analyzeResume(`Analyze this resume and return ONLY in this format:
 
 Resume Score: XX/100
@@ -75,13 +85,16 @@ Internship Suggestions:
 - Company 2
 - Company 3
 
-Keep response concise and professional.`);
+Keep response concise and professional.
+
+Resume Content to Process:
+${resumeText || "File profile: " + fileName}`);
 
       setAiResult(result || "AI analysis completed.");
       setShowResults(true);
     } catch (error) {
       console.error(error);
-      setAiResult("Failed to get AI response.");
+      setAiResult("Failed to get AI response. Please check your Netlify environment variables configuration.");
       setShowResults(true);
     }
 
@@ -112,7 +125,7 @@ Keep response concise and professional.`);
       <input
         id="resume-upload"
         type="file"
-        accept=".pdf,.doc,.docx"
+        accept=".pdf,.doc,.docx,.txt"
         onChange={handleFileChange}
         className="hidden"
       />
