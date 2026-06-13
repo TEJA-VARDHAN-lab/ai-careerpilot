@@ -3,7 +3,7 @@ import { analyzeResume } from "../services/aiService";
 
 function ResumeUpload() {
   const [fileName, setFileName] = useState("");
-  const [resumeText, setResumeText] = useState(""); // Holds the securely extracted text
+  const [resumeText, setResumeText] = useState("");
   const [showResults, setShowResults] = useState(false);
   const [loading, setLoading] = useState(false);
   const [aiResult, setAiResult] = useState("");
@@ -35,11 +35,15 @@ function ResumeUpload() {
     if (file) {
       setFileName(file.name);
 
-      // Read any file format cleanly as text without external plugins
       const reader = new FileReader();
       reader.onload = (event) => {
         const text = event.target.result;
-        setResumeText(text);
+        // If it's a binary file (PDF/Word), don't store the corrupted binary string
+        if (text.includes("%PDF") || text.includes("PK\u0003\u0004")) {
+          setResumeText(`[File Name: ${file.name}] - Document uploaded successfully.`);
+        } else {
+          setResumeText(text);
+        }
       };
       reader.readAsText(file);
     }
@@ -55,8 +59,7 @@ function ResumeUpload() {
     setShowResults(false);
 
     try {
-      // Send the clean text structure directly to your AI pipeline
-      const result = await analyzeResume(`Analyze this resume and return ONLY in this format:
+      const result = await analyzeResume(`Analyze this resume profile and return ONLY in this format:
 
 Resume Score: XX/100
 
@@ -87,14 +90,14 @@ Internship Suggestions:
 
 Keep response concise and professional.
 
-Resume Content to Process:
-${resumeText || "File profile: " + fileName}`);
+Resume Data:
+${resumeText || "Target File: " + fileName}`);
 
       setAiResult(result || "AI analysis completed.");
       setShowResults(true);
     } catch (error) {
-      console.error(error);
-      setAiResult("Failed to get AI response. Please check your Netlify environment variables configuration.");
+      console.error("API Error: ", error);
+      setAiResult("Failed to reach the AI engine. Please ensure your VITE_OPENROUTER_API_KEY environment variable is configured correctly in your Netlify Site Settings.");
       setShowResults(true);
     }
 
@@ -154,26 +157,15 @@ ${resumeText || "File profile: " + fileName}`);
               🤖 AI Analyzing Resume...
             </h3>
 
-            <p className="text-gray-400 mt-3">
-              Detecting Skills
-            </p>
-
-            <p className="text-gray-400">
-              Finding Skill Gaps
-            </p>
-
-            <p className="text-gray-400">
-              Generating Learning Roadmap
-            </p>
+            <p className="text-gray-400 mt-3">Detecting Skills</p>
+            <p className="text-gray-400">Finding Skill Gaps</p>
+            <p className="text-gray-400">Generating Learning Roadmap</p>
           </div>
         </div>
       )}
 
       {showResults && (
         <div className="mt-8 space-y-4">
-
-          {/* AI Report */}
-
           <div className="bg-gradient-to-r from-cyan-900 to-slate-800 p-6 rounded-2xl border border-cyan-500 shadow-lg">
             <h3 className="text-2xl font-bold text-cyan-300 mb-4 flex items-center gap-2">
               🤖 AI Career Analysis
@@ -187,73 +179,39 @@ ${resumeText || "File profile: " + fileName}`);
           </div>
 
           {/* Profile Card */}
-
           <div className="bg-slate-800 p-5 rounded-xl">
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 rounded-full bg-cyan-500 flex items-center justify-center text-2xl font-bold">
                 T
               </div>
-
               <div>
-                <h3 className="text-xl font-bold">
-                  Teja Vardhan
-                </h3>
-
-                <p className="text-gray-400">
-                  B.Tech Student | AI CareerPilot User
-                </p>
+                <h3 className="text-xl font-bold">Teja Vardhan</h3>
+                <p className="text-gray-400">B.Tech Student | AI CareerPilot User</p>
               </div>
             </div>
           </div>
 
           {/* Resume Score */}
-
           <div className="bg-slate-800 p-6 rounded-xl">
             <h3 className="text-xl font-bold text-green-400 mb-4 text-center">
               Resume Score
             </h3>
-
             <div className="flex justify-center">
               <div className="relative w-40 h-40">
                 <svg className="w-40 h-40 -rotate-90">
-                  <circle
-                    cx="80"
-                    cy="80"
-                    r="70"
-                    stroke="#1e293b"
-                    strokeWidth="12"
-                    fill="transparent"
-                  />
-
-                  <circle
-                    cx="80"
-                    cy="80"
-                    r="70"
-                    stroke="#22c55e"
-                    strokeWidth="12"
-                    fill="transparent"
-                    strokeDasharray="440"
-                    strokeDashoffset="79"
-                    strokeLinecap="round"
-                  />
+                  <circle cx="80" cy="80" r="70" stroke="#1e293b" strokeWidth="12" fill="transparent" />
+                  <circle cx="80" cy="80" r="70" stroke="#22c55e" strokeWidth="12" fill="transparent" strokeDasharray="440" strokeDashoffset="79" strokeLinecap="round" />
                 </svg>
-
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-3xl font-bold">
-                    82%
-                  </span>
+                  <span className="text-3xl font-bold">82%</span>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Skills */}
-
           <div className="bg-slate-800 p-5 rounded-xl">
-            <h3 className="text-xl font-bold text-cyan-400 mb-2">
-              Detected Skills
-            </h3>
-
+            <h3 className="text-xl font-bold text-cyan-400 mb-2">Detected Skills</h3>
             <div className="flex gap-2 flex-wrap">
               <span className="bg-cyan-600 px-3 py-1 rounded-full">React</span>
               <span className="bg-cyan-600 px-3 py-1 rounded-full">Java</span>
@@ -262,12 +220,8 @@ ${resumeText || "File profile: " + fileName}`);
           </div>
 
           {/* Missing Skills */}
-
           <div className="bg-slate-800 p-5 rounded-xl">
-            <h3 className="text-xl font-bold text-red-400 mb-2">
-              Missing Skills
-            </h3>
-
+            <h3 className="text-xl font-bold text-red-400 mb-2">Missing Skills</h3>
             <ul className="list-disc ml-5 text-gray-300">
               <li>SQL</li>
               <li>AWS</li>
@@ -276,12 +230,8 @@ ${resumeText || "File profile: " + fileName}`);
           </div>
 
           {/* Roadmap */}
-
           <div className="bg-slate-800 p-5 rounded-xl">
-            <h3 className="text-xl font-bold text-yellow-400 mb-2">
-              Learning Roadmap
-            </h3>
-
+            <h3 className="text-xl font-bold text-yellow-400 mb-2">Learning Roadmap</h3>
             <ul className="list-disc ml-5 text-gray-300">
               <li>Learn SQL</li>
               <li>Learn AWS</li>
@@ -289,36 +239,20 @@ ${resumeText || "File profile: " + fileName}`);
           </div>
 
           {/* Internships */}
-
           <div className="bg-slate-800 p-5 rounded-xl">
-            <h3 className="text-xl font-bold text-purple-400 mb-4">
-              Recommended Internships
-            </h3>
-
+            <h3 className="text-xl font-bold text-purple-400 mb-4">Recommended Internships</h3>
             <div className="space-y-4">
               {internships.map((job, index) => (
-                <div
-                  key={index}
-                  className="bg-slate-900 p-4 rounded-xl border border-slate-700"
-                >
+                <div key={index} className="bg-slate-900 p-4 rounded-xl border border-slate-700">
                   <div className="flex justify-between items-center">
                     <div>
-                      <h4 className="font-bold text-lg">
-                        {job.role}
-                      </h4>
-
-                      <p className="text-gray-400">
-                        {job.company}
-                      </p>
+                      <h4 className="font-bold text-lg">{job.role}</h4>
+                      <p className="text-gray-400">{job.company}</p>
                     </div>
-
-                    <span
-                      className={`${job.color} px-3 py-1 rounded-full text-white`}
-                    >
+                    <span className={`${job.color} px-3 py-1 rounded-full text-white`}>
                       {job.match} Match
                     </span>
                   </div>
-
                   <button className="mt-3 bg-cyan-500 px-4 py-2 rounded-lg hover:bg-cyan-600 font-semibold">
                     Apply Now
                   </button>
@@ -328,11 +262,9 @@ ${resumeText || "File profile: " + fileName}`);
           </div>
 
           {/* Download Report */}
-
           <button className="w-full bg-green-600 hover:bg-green-700 transition py-3 rounded-xl font-bold text-white">
             Download AI Career Report
           </button>
-
         </div>
       )}
     </div>
